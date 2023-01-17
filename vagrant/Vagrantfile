@@ -1,10 +1,10 @@
 Vagrant.configure("2") do |config|
 
-  # Iniciando 6 vms no oracle virtual box
-  (1..6).each do |i|
+  # 5 vms do cluster k8s, 3 control-planes, 2 workers
+  (1..5).each do |i|
     config.vm.define "k8s-0#{i}" do |k8s|
       # Box do ubuntu 22.04
-      k8s.vm.box = "ubuntu/jammy64"
+      k8s.vm.box = "ubuntu/focal64"
 
       # Configurando recursos
       k8s.vm.provider "virtualbox" do |vm|
@@ -14,22 +14,50 @@ Vagrant.configure("2") do |config|
 
       # Desabilita o mapeamento do host para VM, para podermos utilizar a partir de um caminho do WSL2
       k8s.vm.synced_folder '.', '/vagrant', disabled: true
-      # Vms terão ips estáticos no modo bridge de 192.168.0.81 à 192.168.0.86
+      # Vms terão ips estáticos no modo bridge
       k8s.vm.network "public_network", ip: "192.168.0.8#{i}"
       # Configurando hostname
       k8s.vm.hostname = "k8s-0#{i}"
 
       # Adicionando chave SSH na VM
-      config.vm.provision "shell" do |shell|
-        ssh_pub_key = File.readlines("./ssh_key/id_rsa.pub").first.strip
+      k8s.vm.provision "shell" do |shell|
+        ssh_pub_key = File.readlines("../ssh_key/id_rsa.pub").first.strip
         shell.inline = <<-SHELL
           echo #{ssh_pub_key} >> /home/vagrant/.ssh/authorized_keys
-          echo #{ssh_pub_key} >> /root/.ssh/authorized_keys
         SHELL
       end
-  
-    end
 
+    end
+  end
+
+  # 2 vms do load balancer
+  (1..2).each do |i|
+    config.vm.define "lb-0#{i}" do |lb|
+      # Box do ubuntu 22.04
+      lb.vm.box = "ubuntu/focal64"
+
+      # Configurando recursos
+      lb.vm.provider "virtualbox" do |vm|
+        vm.memory = "1024"
+        vm.cpus = 2
+      end
+
+      # Desabilita o mapeamento do host para VM, para podermos utilizar a partir de um caminho do WSL2
+      lb.vm.synced_folder '.', '/vagrant', disabled: true
+      # Vms terão ips estáticos no modo bridge
+      lb.vm.network "public_network", ip: "192.168.0.9#{i}"
+      # Configurando hostname
+      lb.vm.hostname = "lb-0#{i}"
+
+      # Adicionando chave SSH na VM
+      lb.vm.provision "shell" do |shell|
+        ssh_pub_key = File.readlines("../ssh_key/id_rsa.pub").first.strip
+        shell.inline = <<-SHELL
+          echo #{ssh_pub_key} >> /home/vagrant/.ssh/authorized_keys
+        SHELL
+      end
+
+    end
   end
 
 end
