@@ -1,0 +1,40 @@
+- name: Instalação keepalived e haproxy
+  hosts: loadbalancers
+  become: true
+  tasks:
+  - name: Instalação dos pacotes requisitos
+    apt:
+      pkg:
+      - keepalived
+      - haproxy
+      state: present
+
+  - name: Copiar script check_apiserver
+    ansible.builtin.copy:
+      src: ./config_files/check_apiserver.sh
+      dest: /etc/keepalived/check_apiserver.sh
+      mode: '744'
+
+  - name: Copiar arquivo de conf do keepalived
+    ansible.builtin.copy:
+      src: ./config_files/keepalived.conf
+      dest: /etc/keepalived/keepalived.conf
+      mode: '644'
+
+  - name: Copiar arquivo de conf do haproxy
+    ansible.builtin.copy:
+      src: ./config_files/haproxy.cfg
+      dest: /etc/haproxy/haproxy.cfg
+      mode: '644'
+
+  - name: Habilitar e iniciar keepalived
+    ansible.builtin.service:
+      name: keepalived
+      enabled: true
+      state: restarted
+
+  - name: Habilitar e iniciar haproxy
+    ansible.builtin.service:
+      name: haproxy
+      enabled: true
+      state: restarted

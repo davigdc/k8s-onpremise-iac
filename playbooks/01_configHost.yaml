@@ -1,0 +1,41 @@
+---
+- name: Configuração dos hosts
+  hosts: all
+  become: true
+  tasks:
+  - name: Atualizar repositórios e instalar novas versões
+    apt:
+      upgrade: yes
+      update_cache: yes
+
+  - name: Desabilitando dispositivos e arquivos de swap
+    shell: |
+      swapoff -a
+
+  - name: Comentando partições de swap no arquivo /etc/fstab
+    replace:
+      path: /etc/fstab
+      regexp: '^([^#].*?\sswap\s+sw\s+.*)$'
+      replace: '# \1'
+
+  - name: Alterando timezone do sistema
+    shell: |
+      timedatectl set-timezone America/Sao_Paulo
+
+  - name: Desabilitar IPV6 permanentemente
+    ansible.builtin.copy:
+      src: ./config_files/sysctl_ipv6.conf
+      dest: /etc/sysctl.d/ipv6.conf
+      mode: '644'
+
+  - name: Desabilitar IPV6 no boot atual
+    shell: |
+      sysctl -w net.ipv6.conf.all.disable_ipv6=1
+      sysctl -w net.ipv6.conf.default.disable_ipv6=1
+      sysctl -w net.ipv6.conf.lo.disable_ipv6=1
+
+  - name: Força sysctl a ler arquivos de configuração /etc/sysctl.d/
+    ansible.builtin.copy:
+      src: ./config_files/rc.local
+      dest: /etc/rc.local
+      mode: '744'

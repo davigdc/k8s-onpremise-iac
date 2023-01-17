@@ -1,0 +1,62 @@
+- name: Instalar e configurar o ContainerD
+  hosts: k8smasters:k8sworkers
+  become: true
+  tasks:
+  - name: Instalação dos módulos do Kernel Linux
+    ansible.builtin.copy:
+      src: ./config_files/modules.conf
+      dest: /etc/modules-load.d/k8s.conf
+      mode: '644'
+
+  - name: Adicionando o overlay
+    modprobe:
+      name: overlay
+      state: present
+
+  - name: Adicionando o br_netfilter
+    modprobe:
+      name: br_netfilter
+      state: present
+
+  - name: Configuração dos parametros do sysctl
+    ansible.builtin.copy:
+      src: ./config_files/sysctl_k8s.conf
+      dest: /etc/sysctl.d/k8s.conf
+      mode: '644'
+
+  - name: Executando o comando sysctl para atualizar configurações
+    command: "sysctl --system"
+
+  - name: Adicionar a chave do repositório APT
+    apt_key:
+      url: https://download.docker.com/linux/ubuntu/gpg
+      state: present
+
+  - name: Adicionando o repositório para instalar o ContainerD
+    apt_repository:
+      repo: deb https://download.docker.com/linux/ubuntu bionic stable
+      state: present
+
+  - name: Instalando o ContainerD
+    apt: 
+      name: containerd.io=1.6.14-1
+      update_cache: yes
+
+  - name: Criação do diretório de configuração do ContainerD
+    file:
+      path: /etc/containerd
+      state: directory
+      owner: root
+      group: root
+      mode: 0644
+
+  - name: Criar o arquivo de configuração
+    shell: containerd config default > /etc/containerd/config.toml
+
+  - name: Configurando o ContainerD para utilizar SystemD
+    command: sed -i 's/SystemdCgroup = false/SystemdCgroup = true/g' /etc/containerd/config.toml
+
+  - name: Restart ContainerD
+    ansible.builtin.service:
+      name: containerd
+      state: restarted
